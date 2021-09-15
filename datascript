@@ -1,0 +1,14 @@
+import pandas as pd
+
+data = "all_stocks_5yr.csv"
+df = pd.read_csv(data)
+print(df.head)
+
+'''
+nameLast = 'none'
+for i in rows
+    if Name == nameLast
+        data.append[i,:]
+
+'''
+
