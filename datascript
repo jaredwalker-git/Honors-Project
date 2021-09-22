@@ -7,15 +7,23 @@ print(df.head)
 dfArray = df.to_numpy()
 
 #figuring out size and indices of data
-print(dfArray[0,0])
+print(dfArray[0,6])
 print(dfArray.shape[0])
 
-
-#This can be a hyperparameter for setting data
+'''
+#Creates 
 nameLast = 'AAL'
-for i in range(inputData.shape[0]):
-    if Name == nameLast:
-        inputData.append[i,:]
+for i in range(dfArray.shape[0]):
+    flag = True
+    while flag:
+
+        if dfArray[i, 6] == nameLast:
+            data_to_concatenate.append[i,:]
+        else:
+            nameLast = dfArray[i, 6]
+
+'''
+
 
 
 
