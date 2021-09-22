@@ -1,14 +1,22 @@
 import pandas as pd
 
+#import .csv data and convert to numpy array
 data = "all_stocks_5yr.csv"
 df = pd.read_csv(data)
 print(df.head)
+dfArray = df.to_numpy()
 
-'''
-nameLast = 'none'
-for i in rows
-    if Name == nameLast
-        data.append[i,:]
+#figuring out size and indices of data
+print(dfArray[0,0])
+print(dfArray.shape[0])
 
-'''
+
+#This can be a hyperparameter for setting data
+nameLast = 'AAL'
+for i in range(inputData.shape[0]):
+    if Name == nameLast:
+        inputData.append[i,:]
+
+
+
 
