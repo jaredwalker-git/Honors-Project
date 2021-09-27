@@ -10,19 +10,17 @@ dfArray = df.to_numpy()
 print(dfArray[0,6])
 print(dfArray.shape[0])
 
-'''
+
 #Creates 
 nameLast = 'AAL'
+data_array = []
+
 for i in range(dfArray.shape[0]):
-    flag = True
-    while flag:
+    if dfArray[i, 6] == nameLast:
+        data_array.append[i,:]
+    else:
+        nameLast = dfArray[i, 6]
 
-        if dfArray[i, 6] == nameLast:
-            data_to_concatenate.append[i,:]
-        else:
-            nameLast = dfArray[i, 6]
-
-'''
 
 
 
