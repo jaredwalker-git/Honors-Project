@@ -1,0 +1,43 @@
+import pandas as pd
+import numpy as np
+
+#import .csv data and convert to numpy array
+data = "all_stocks_5yr.csv"
+df = pd.read_csv(data)
+print(df.head)
+dfArray = df.to_numpy()
+
+#figuring out size and indices of data
+print(dfArray[0,6])
+print(dfArray.shape[0])
+
+
+#Creates 
+nameLast = 'AAL'
+data_array = np.array([])
+data_array.resize([1,7,1], refcheck = False) #refcheck to false to allow for resize
+input_data_list = np.array([])
+input_data_list.resize([1260,7,1])
+
+for i in range(dfArray.shape[0]):
+    if dfArray[i, 6] == nameLast:
+        data_array = np.append(data_array, dfArray[i,:].reshape(1,7,1) , axis = 0) #reshape of dfArray for dimension matching
+    
+    else:
+        nameLast = dfArray[i, 6]
+        input_data_list = np.append(input_data_list, data_array, axis = 2 )
+        data_array = np.array([])
+        data_array.resize([1,7,1], refcheck = False) #refcheck to false to allow for resize
+
+inputData = np.array(input_data_list)
+print(data_array.shape)
+print(inputData.shape)
+#inputData.tofile('inputData.dat')
+
+        
+
+
+
+
+
+
