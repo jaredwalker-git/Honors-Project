@@ -15,24 +15,23 @@ print(dfArray.shape[0])
 #Creates 
 nameLast = 'AAL'
 data_array = np.array([])
-data_array.resize([1,7,1], refcheck = False) #refcheck to false to allow for resize
-input_data_list = np.array([])
-input_data_list.resize([1260,7,1])
+data_array.resize([1,7], refcheck = False) #refcheck to false to allow for resize
+input_data_list = []
 
 for i in range(dfArray.shape[0]):
     if dfArray[i, 6] == nameLast:
-        data_array = np.append(data_array, dfArray[i,:].reshape(1,7,1) , axis = 0) #reshape of dfArray for dimension matching
+        data_array = np.append(data_array, dfArray[i,:].reshape(1,7) , axis = 0) #reshape of dfArray for dimension matching
     
     else:
         nameLast = dfArray[i, 6]
-        input_data_list = np.append(input_data_list, data_array, axis = 2 )
+        input_data_list.append(data_array)
         data_array = np.array([])
-        data_array.resize([1,7,1], refcheck = False) #refcheck to false to allow for resize
+        data_array.resize([1,7], refcheck = False) #refcheck to false to allow for resize
 
-inputData = np.array(input_data_list)
+inputData = np.array(input_data_list, dtype = object)
 print(data_array.shape)
-print(inputData.shape)
-#inputData.tofile('inputData.dat')
+print(inputData[-1])
+np.save('inputData.npy', inputData)
 
         
 
