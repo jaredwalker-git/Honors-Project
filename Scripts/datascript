@@ -1,37 +1,70 @@
+from matplotlib.colors import LinearSegmentedColormap
 import pandas as pd
+import matplotlib.pyplot as plt
 import numpy as np
+import sklearn
 
-#import .csv data and convert to numpy array
-data = "all_stocks_5yr.csv"
-df = pd.read_csv(data)
-print(df.head)
-dfArray = df.to_numpy()
+def make_data_usable():
+    #import .csv data and convert to numpy array
+    data = "all_stocks_5yr.csv"
+    df = pd.read_csv(data)
+    dfArray = df.to_numpy()
 
-#figuring out size and indices of data
-print(dfArray[0,6])
-print(dfArray.shape[0])
+    #figuring out size and indices of data
+    '''
+    print(dfArray[0,6])
+    print(dfArray.shape[0])
+    '''
+
+    ################################################################################
+    #Update code so array is initialized with np.zeros and filled using indexing, 
+    #this will make working with data more easy later
 
 
-#Creates 
-nameLast = 'AAL'
-data_array = np.array([])
-data_array.resize([1,7], refcheck = False) #refcheck to false to allow for resize
-input_data_list = []
+    ################################################################################
+ 
+    nameLast = 'AAL'
+    data_array = np.array([])
+    data_array.resize([1,7], refcheck = False))#refcheck to false to allow for resize
+    print(data_array)
+    input_data_list = []
 
-for i in range(dfArray.shape[0]):
-    if dfArray[i, 6] == nameLast:
-        data_array = np.append(data_array, dfArray[i,:].reshape(1,7) , axis = 0) #reshape of dfArray for dimension matching
+    for i in range(dfArray.shape[0]):
+        if dfArray[i, 6] == nameLast:
+            data_array = np.append(data_array, dfArray[i,:].reshape(1,7) , axis = 0) #reshape of dfArray for dimension matching
+
+        else:
+            nameLast = dfArray[i, 6]
+            input_data_list.append(data_array)
+            data_array = np.array([])
+            data_array.resize([1,7], refcheck = False) #refcheck to false to allow for resize
+
+    inputData = np.array(input_data_list, dtype = object)
+    #print(data_array.shape)
+    #print(inputData[-1])
+
+    #now to create return value data for labels
+    df['LastClose'] = df['close'].shift(1)
+    print(df.head())
+    df['Return'] = (df['close'] - df['LastClose'])/df['close']
+    print(df.head())
     
-    else:
-        nameLast = dfArray[i, 6]
-        input_data_list.append(data_array)
-        data_array = np.array([])
-        data_array.resize([1,7], refcheck = False) #refcheck to false to allow for resize
+    '''
+    df['Return'].hist(bins = 10)
+    plt.show()
+    '''
 
-inputData = np.array(input_data_list, dtype = object)
-print(data_array.shape)
-print(inputData[-1])
-np.save('inputData.npy', inputData)
+    labels = df['Return'].values[1:].reshape(-1,1)
+    print(labels[0])
+
+    #StandardScalar, .fit and .transform used to standardize data. .fit only used on training data
+    ss = StandardScalar()
+    ss.fit(labels[len(labels)/2])
+    labels = ss.transform(labels).flatten()
+
+    np.save('inputData.npy', inputData)
+
+make_data_usable() #This will be removed once script is called from another python module
 
         
 
