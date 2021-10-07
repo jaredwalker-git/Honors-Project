@@ -2,12 +2,16 @@ from matplotlib.colors import LinearSegmentedColormap
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
-import sklearn
+from sklearn.preprocessing import StandardScaler
 
 def make_data_usable():
     #import .csv data and convert to numpy array
     data = "all_stocks_5yr.csv"
     df = pd.read_csv(data)
+    
+    #now to create return value data for labels
+    df['LastClose'] = df['close'].shift(1)
+    df['Return'] = (df['close'] - df['LastClose'])/df['close']
     dfArray = df.to_numpy()
 
     #figuring out size and indices of data
@@ -15,6 +19,7 @@ def make_data_usable():
     print(dfArray[0,6])
     print(dfArray.shape[0])
     '''
+
 
     ################################################################################
     #Update code so array is initialized with np.zeros and filled using indexing, 
@@ -24,43 +29,29 @@ def make_data_usable():
     ################################################################################
  
     nameLast = 'AAL'
-    data_array = np.array([])
-    data_array.resize([1,7], refcheck = False))#refcheck to false to allow for resize
-    print(data_array)
+    data_array = np.zeros(shape = (dfArray.shape[0],9), dtype = object)
+    rowsPer = 0
     input_data_list = []
 
     for i in range(dfArray.shape[0]):
         if dfArray[i, 6] == nameLast:
-            data_array = np.append(data_array, dfArray[i,:].reshape(1,7) , axis = 0) #reshape of dfArray for dimension matching
-
+            data_array[rowsPer, :] = dfArray[i,:].reshape(1,9) #reshape of dfArray for dimension matching
+            rowsPer = rowsPer + 1
         else:
             nameLast = dfArray[i, 6]
-            input_data_list.append(data_array)
-            data_array = np.array([])
-            data_array.resize([1,7], refcheck = False) #refcheck to false to allow for resize
+            input_data_list.append(data_array[:rowsPer, :])
+            #print(data_array[:rowsPer, :].shape)
+            data_array = np.zeros(shape = (rowsPer,9), dtype = object)
+            rowsPer = 0
 
     inputData = np.array(input_data_list, dtype = object)
-    #print(data_array.shape)
-    #print(inputData[-1])
-
-    #now to create return value data for labels
-    df['LastClose'] = df['close'].shift(1)
-    print(df.head())
-    df['Return'] = (df['close'] - df['LastClose'])/df['close']
-    print(df.head())
     
+    print(inputData[-1])
+
     '''
     df['Return'].hist(bins = 10)
     plt.show()
     '''
-
-    labels = df['Return'].values[1:].reshape(-1,1)
-    print(labels[0])
-
-    #StandardScalar, .fit and .transform used to standardize data. .fit only used on training data
-    ss = StandardScalar()
-    ss.fit(labels[len(labels)/2])
-    labels = ss.transform(labels).flatten()
 
     np.save('inputData.npy', inputData)
 
