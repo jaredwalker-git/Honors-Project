@@ -3,14 +3,16 @@ import tensorflow as tf
 from tensorflow import keras
 
 inputData = np.load("inputData.npy", allow_pickle = True)
-#print(inputData[1].shape) --> 1259 for shape
+print(inputData[1].shape) # 1258 for shape
 
 returns = inputData[:,-1].values[1:].reshape(-1,1)
 ####################################################
 '''
 Just need to make x data into time series for input
 '''
-
+#T x D x N data where T:time steps, D: Features, N:number
+T = 10 
+D = inputData[1].shape[1]
 #StandardScalar, .fit and .transform used to standardize data. .fit only used on training data
 ss = StandardScaler()
 ss.fit(returns[:len(returns/2)])
