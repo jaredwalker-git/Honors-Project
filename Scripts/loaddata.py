@@ -1,10 +1,9 @@
-from matplotlib.colors import LinearSegmentedColormap
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.preprocessing import StandardScaler
 
-def make_data_usable():
+def load_data():
     #import .csv data and convert to numpy array
     data = "all_stocks_5yr.csv"
     df = pd.read_csv(data)
@@ -55,7 +54,7 @@ def make_data_usable():
 
     np.save('inputData.npy', inputData)
 
-make_data_usable() #This will be removed once script is called from another python module
+load_data() #This will be removed once script is called from another python module
 
         
 
