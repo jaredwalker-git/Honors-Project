@@ -60,15 +60,15 @@ inputLayer = keras.layers.Input(shape = [10, 5])
 lstm1 = keras.layers.LSTM(5, activation = 'tanh', recurrent_activation = 'sigmoid', return_sequences = True)(inputLayer) #use of regularizers or initializers? // 4 is for dimentionality of output
 lstm2 = keras.layers.LSTM(5, activation = 'tanh', recurrent_activation = 'sigmoid')(lstm1)
 dense1 = keras.layers.Dense(50)(lstm2)
-out = keras.layers.Dense(5)(dense1) #will want to change number of nodes to desired output
+out = keras.layers.Dense(1, activation = 'sigmoid')(dense1) #will want to change number of nodes to desired output
 
 model = keras.Model(inputs = inputLayer, outputs = out)
-model.compile(optimizer = 'adam', loss = 'binary_crossentropy')
+model.compile(optimizer = 'adam', loss = 'binary_crossentropy',  metrics = 'accuracy')
 model.summary
 history = model.fit(x_train, y_train, epochs = 5, validation_data = (x_test, y_test))
 
 print(history.history.keys())
-r
+
 plt.clf()
 plt.plot(history.history['accuracy'])
 plt.title('Model accuracy')
