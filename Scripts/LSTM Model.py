@@ -14,20 +14,31 @@ asking which x stocks should be trained -> for now will use 1 as proof of concep
 --> index like this, if grabbing data for multiple stocks need loop
 '''
 
+''' THIS IS FOR INDEXING DATA USING TICKERS
 userinput = ['AAPL']
 
 for i in range(len(raw_data)):
     if raw_data[i][0, 6] in userinput:
         input_data = raw_data[i][:, 1:6]
         returns = raw_data[i][:, -1]
+'''
+'FOR INDEXING RANDOMLY'
 
+num_stocks = 10 # arbitrary value
+userinput = np.random.randint(500, size = (num_stocks)) #taking arbitrary number of random indices for selection from 500 stocks
+input_data = np.zeros(num_stocks, raw_data[0].shape[0], 6) # initializing data array of size (num_stocks, number of time steps, number of desire features) 
+j = 0 #indexing variable to index input_data and returns
+
+for i in userinput:
+    input_data[j, :, :] = raw_data[i][:, 1:6] #splitting features so that features for training are seperate from un-needed features and return values used for labels
+    returns = raw_data[i][:, -1]
 
 ####################################################
 '''
 Just need to make x data into time series for input
 '''
 #N x T x D data where T:time steps, D: Features, N:number of usable times, since need t pieces of data for prediction
-t = 10 
+t = 10 #number of time stamps for each sequence
 d = input_data.shape[1]
 n = len(input_data) - t
 
@@ -65,7 +76,7 @@ out = keras.layers.Dense(1, activation = 'sigmoid')(dense1) #will want to change
 model = keras.Model(inputs = inputLayer, outputs = out)
 model.compile(optimizer = 'adam', loss = 'binary_crossentropy',  metrics = 'accuracy')
 model.summary
-history = model.fit(x_train, y_train, epochs = 5, validation_data = (x_test, y_test))
+history = model.fit(x_train, y_train, epochs = 50, validation_data = (x_test, y_test))
 
 print(history.history.keys())
 
