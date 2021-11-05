@@ -26,18 +26,13 @@ def load_data():
 
 
     ################################################################################
- 
+    #Initializing variables to be used in data preprocessing
     nameLast = 'AAL'
-    timesteps = 0
-    rowsPer = 0
+    rowsPer = 0 
     input_data_list = []
 
-    for k in range(dfArray.shape[0]):   #This figures the number of timesteps per stock
-        if dfArray[k, 6] == nameLast:
-            timesteps = timesteps + 1
-    
-
-    data_array = np.zeros(shape = (timesteps,9), dtype = object)
+     
+    data_array = np.zeros(shape = (2000,9), dtype = object) #initializing a data array here -> integers used to initialize since max time steps is 1260 and trying to initialize with a variable leads to inefficient data allocation
   
     for i in range(dfArray.shape[0]):
         if dfArray[i, 6] == nameLast:
@@ -46,20 +41,16 @@ def load_data():
         
         else:
             nameLast = dfArray[i, 6]
-            input_data_list.append(data_array[:rowsPer, :])
-            #print(data_array[:rowsPer, :].shape)
-            data_array = np.zeros(shape = (timesteps,9), dtype = object)
-            rowsPer = 0
-
-    inputData = np.array(input_data_list, dtype = object)
-
-    print(inputData[-1])
-
-    '''
-    df['Return'].hist(bins = 10)
-    plt.show()
-    '''
-
+            input_data_list.append(data_array[:rowsPer, :]) #only appends the data array up until rowsPer -> this is so same array can be used and anything after this index is N/A
+            rowsPer = 0 #set rowsPer to 0 to index first time step of new array for next stock
+            data_array = np.zeros(shape = (2000 ,9), dtype = object) #reinitializing here since when this is left out python prints all input_data_list as final stock data -> this was only way to fix error
+            data_array[rowsPer, :] = dfArray[i,:].reshape(1,9) #this is here since if nameLast != current tcker, must set the new ticker as index 0 of new array
+            rowsPer = rowsPer + 1 #must increment here since index zero is set via line above
+            
+        
+    input_data_list.append(data_array[:rowsPer, :]) #to append the last timestep of dfArray
+    inputData = np.array(input_data_list, dtype = object) 
+     
     np.save('inputData.npy', inputData)
 
 load_data() #This will be removed once script is called from another python module
