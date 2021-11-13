@@ -1,0 +1,13 @@
+import tensorflow
+from tensorflow import keras
+
+def make_model(input_shape, num_actions, x):
+
+    inputLayer = keras.layers.Input(shape = [10, num_actions])
+    lstm1 = keras.layers.LSTM(num_actions, activation = 'tanh', recurrent_activation = 'sigmoid', return_sequences = True)(inputLayer) #use of regularizers or initializers? // 4 is for dimentionality of output
+    lstm2 = keras.layers.LSTM(num_actions, activation = 'tanh', recurrent_activation = 'sigmoid')(lstm1)
+    dense1 = keras.layers.Dense(50)(lstm2)
+    out = keras.layers.Dense(1, activation = 'sigmoid')(dense1) #will want to change number of nodes to desired output
+
+    model = keras.Model(inputs = inputLayer, outputs = out)
+    return model

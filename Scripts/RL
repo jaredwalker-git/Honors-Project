@@ -1,0 +1,30 @@
+
+'''
+Initialize Buffer in __init__ for storing each variable of length size
+Class replay w attribute for state with size stocks x timesteps x features -> going to first try for one stock
+'''
+
+import numpy as np
+
+class Replay_Memory():
+    
+    def __init__(self, size, timesteps, features):
+        self.state = np.empty(size = (size, timesteps, features)) 
+        self.state1 = np.empty(size = (size, timesteps, features))
+        self.action = np.empty (size)
+        self.reward = np.empty(size)
+        self.done_flag = np.empty(size)
+        self.index = 0 
+        self.cur_size = 0
+        self.maxsize = size
+
+    def storeData(self, curr_state, next_state, act, rew, done)
+        self.state[self.index] = curr_state
+        self.state1[self.index] = next_state
+        self.action[self.index] = act
+        self.reward[self.index] = rew
+        self.done_flag[self.index] = done
+        self.index = (self.index + 1)
+    
+    def sample(self, )
+    
