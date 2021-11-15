@@ -2,12 +2,18 @@
 '''
 Initialize Buffer in __init__ for storing each variable of length size
 Class replay w attribute for state with size stocks x timesteps x features -> going to first try for one stock
+Modulous index with maxsize -> sets index back to 0
 '''
 
 import numpy as np
+from sklearn.preprocessing import StandardScaler
+import itertools
 
-class Replay_Memory():
-    
+import tensorflow
+from tensorflow import keras
+
+class Replay_Memory:
+    #setting attributes for state and next state (stock data), action, reward, done flag, index, current size and max size of buffer
     def __init__(self, size, timesteps, features):
         self.state = np.empty(size = (size, timesteps, features)) 
         self.state1 = np.empty(size = (size, timesteps, features))
@@ -15,16 +21,66 @@ class Replay_Memory():
         self.reward = np.empty(size)
         self.done_flag = np.empty(size)
         self.index = 0 
-        self.cur_size = 0
+        self.curr_size = 0
         self.maxsize = size
-
-    def storeData(self, curr_state, next_state, act, rew, done)
+    #function to store obs of episode to buffer and increment index for next entry to buffer until maxsize
+    def storeData(self, curr_state, next_state, act, rew, done):
         self.state[self.index] = curr_state
         self.state1[self.index] = next_state
         self.action[self.index] = act
         self.reward[self.index] = rew
         self.done_flag[self.index] = done
-        self.index = (self.index + 1)
+        self.index = (self.index + 1) % self.maxsize
+    #function to sample batch size from buffer up to index at curr_size of buffer
+    def sample(self, batchsize):
+        indices = np.random.randint(0, self.curr_size, size = batchsize)
+        return (self.state[indices], self.state1[indices], self.action[indices], self.reward[indices], self.done_flag[indices])
+
+'''
+Function to Standardize Data
+We need to standardize data before using it -> no reward data since no actions have been performed by agent -> untrained agent so just randomly sample actions for num_steps in episode
+Info is portfolio data
+'''
+
+def standardize_data(env):
+    #need to get scalar for enviroment,first need to step through for num_steps to populate num_stocks and cash info
+    states = [] #set list to fill with states given random action
+    for _ in range(env.num_steps):
+        action = np.random.choice(self.action_policy)
+        state, reward, done, info = env.step(action)
+        states.append(state)
+        if done:
+            break
     
-    def sample(self, )
+    standard = StandardScaler()
+    standard.fit(states)
+    return standard
+
+def make_model(input_shape, num_actions, nodes):
+    # making model 
+    inputLayer = keras.layers.Input(shape = input_shape)
+    lstm1 = keras.layers.LSTM(nodes, activation = 'tanh', recurrent_activation = 'sigmoid', return_sequences = True)(inputLayer) 
+    lstm2 = keras.layers.LSTM(nodes, activation = 'tanh', recurrent_activation = 'sigmoid')(lstm1)
+    dense1 = keras.layers.Dense(50)(lstm2)
+    out = keras.layers.Dense(num_actions)(dense1)
+
+    model = keras.Model(inputs = inputLayer, outputs = out)
+    return model
+
+class StockEnv:
+    #initializing attributes
+    def __init__(self, data, initial_investment):
+        self.stock_data = data
+        self.num_stocks = self.stock_data[0]
+        self.num_steps = self.stock_data[1]
+        self.num_features = self.stock_data[2]
+        self.initial_investment = initial_investment
+         
+        #number of different action = 3 actions ^ num_stocks    
+        self.action_dim = np.arange( 3 ** self.num_stocks )
+        #enumerate all action space by creating cartesian products of array repeated number of times = number of stocks to act on
+        self.action_space = list(itertools.product([0 , 1, 2], repeat = self.num_stocks) )
+        self.state_size = 
+
+
     
