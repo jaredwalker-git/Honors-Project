@@ -67,20 +67,77 @@ def make_model(input_shape, num_actions, nodes):
     model = keras.Model(inputs = inputLayer, outputs = out)
     return model
 
+
 class StockEnv:
     #initializing attributes
     def __init__(self, data, initial_investment):
+        #data is num_stocks, timesteps, features
         self.stock_data = data
         self.num_stocks = self.stock_data[0]
         self.num_steps = self.stock_data[1]
         self.num_features = self.stock_data[2]
         self.initial_investment = initial_investment
+        self.step_index = 0
+        self.stock_owned = []
+        self.stock_price = []
+        self.cash = 0
          
         #number of different action = 3 actions ^ num_stocks    
         self.action_dim = np.arange( 3 ** self.num_stocks )
         #enumerate all action space by creating cartesian products of array repeated number of times = number of stocks to act on
         self.action_space = list(itertools.product([0 , 1, 2], repeat = self.num_stocks) )
-        self.state_size = 
+        #state space for price, quantity, num features for each stock +1 for cash held
+        self.state_size = 2 * self.num_stocks + self.num_features * self.num_stocks + 1
+
+    def get_stock_price(self):
+        for j in range(self.num_stocks):
+            #set each stock price to that at initial step
+            self.stock_price[j] = self.stock_data[j, 0, 0]
+
+    def reset(self):
+        self.stock_owned = np.zeros(shape = len(self.num_stocks))
+        self.step_index = 0
+        self.get_stock_price(self) 
+        self.cash = self.initial_investment
+        return self.get_state()
 
 
+    def step(self, action):
+        #value of portfolio before step
+        pre_val  = self.get_val()
+        self.step_index += 1
+        #get stock prices for this index
+        self.get_stock_price(self)
+        self.trade(action)
+        post_val = self.get_val()
+        reward = post_val - pre_val
+        #set done flag to boolean expression checking index against num_steps
+        done = self.step_index == (self.num_steps - 1)
+        info = {"Portfolio Val:", post_val}
+        return self.get_state(), reward, done, info
+
+    def get_state(self):
+        #initialize state
+        state = np.empty(shape = len(self.state_size))
+        #set first indices to quantities of each stock
+        state[:self.num_stocks] = self.stock_owned
+        #set next indices to price of each stock
+        state[self.num_stocks:2*self.num_stocks] = self.stock_price
+        #set final indices to features of each stock
+        for k in range(self.num_stocks):
+            #indexing num_features spaces at a time for num_stocks so that features for each stock are saved in state space
+            state[(k+1)*2*self.num_stocks:((k+1)*2*self.num_stocks+self.num_features)] = self.stock_data[k, self.step_index, :]
+        return state
     
+    def get_val(self):
+        val = np.dot(self.num_stocks, self.stock_price)
+        return val
+
+    def trade(self, action):
+        action_vec = self.action_space[action]
+        sell_index = []
+        buy_index = []
+        #0 buy, 1 hold, 2 sell
+        for i in range(action_vec):
+            if i == 0:
+                buy_index.append(i)
