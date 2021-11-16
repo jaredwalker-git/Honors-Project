@@ -83,7 +83,7 @@ class StockEnv:
         self.cash = 0
          
         #number of different action = 3 actions ^ num_stocks    
-        self.action_dim = np.arange( 3 ** self.num_stocks )
+        self.action_size = np.arange( 3 ** self.num_stocks )
         #enumerate all action space by creating cartesian products of array repeated number of times = number of stocks to act on
         self.action_space = list(itertools.product([0 , 1, 2], repeat = self.num_stocks) )
         #state space for price, quantity, num features for each stock +1 for cash held
@@ -135,9 +135,23 @@ class StockEnv:
 
     def trade(self, action):
         action_vec = self.action_space[action]
-        sell_index = []
         buy_index = []
         #0 buy, 1 hold, 2 sell
-        for i in range(action_vec):
-            if i == 0:
-                buy_index.append(i)
+        for i in range(len(action_vec)):
+        if action_vec[i] == 2:
+            self.cash += (self.stock_price[i] * self.num_stocks[i]) 
+            self.num_stocks[i] = 0
+        if action_vec[i] == 0:
+            buy_index.append(i)
+        canbuy = True
+
+        while canbuy:
+            for i in buy_index:
+                if self.cash > self.stock_price[i]:
+                    self.cash -= self.stock_price[i]
+                    self.num_stocks[i] += 1   
+                else:
+                    canbuy = False
+        
+class Agent:
+    def __init__(self, state_size, action_size)       
