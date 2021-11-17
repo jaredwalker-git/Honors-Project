@@ -5,26 +5,28 @@ Class replay w attribute for state with size stocks x timesteps x features -> go
 Modulous index with maxsize -> sets index back to 0
 '''
 
+from matplotlib.pyplot import sca
 import numpy as np
 from sklearn.preprocessing import StandardScaler
 import itertools
 
 import tensorflow
 from tensorflow import keras
+from tensorflow.python.summary.summary import scalar
 
 class Replay_Memory:
     #setting attributes for state and next state (stock data), action, reward, done flag, index, current size and max size of buffer
-    def __init__(self, size, timesteps, features):
-        self.state = np.empty(size = (size, timesteps, features)) 
-        self.state1 = np.empty(size = (size, timesteps, features))
-        self.action = np.empty (size)
-        self.reward = np.empty(size)
-        self.done_flag = np.empty(size)
+    def __init__(self, state_size, action_size, buf_length):
+        self.state = np.empty(size = (buf_length, state_size)) 
+        self.state1 = np.empty(size = (buf_length, state_size))
+        self.action = np.empty (buf_length)
+        self.reward = np.empty(buf_length)
+        self.done_flag = np.empty(buf_length)
         self.index = 0 
         self.curr_size = 0
-        self.maxsize = size
+        self.maxsize = buf_length
     #function to store obs of episode to buffer and increment index for next entry to buffer until maxsize
-    def storeData(self, curr_state, next_state, act, rew, done):
+    def store_data(self, curr_state, next_state, act, rew, done):
         self.state[self.index] = curr_state
         self.state1[self.index] = next_state
         self.action[self.index] = act
@@ -46,7 +48,7 @@ def standardize_data(env):
     #need to get scalar for enviroment,first need to step through for num_steps to populate num_stocks and cash info
     states = [] #set list to fill with states given random action
     for _ in range(env.num_steps):
-        action = np.random.choice(self.action_policy)
+        action = np.random.choice(env.action_size)
         state, reward, done, info = env.step(action)
         states.append(state)
         if done:
@@ -66,7 +68,6 @@ def make_model(input_shape, num_actions, nodes):
 
     model = keras.Model(inputs = inputLayer, outputs = out)
     return model
-
 
 class StockEnv:
     #initializing attributes
@@ -101,7 +102,6 @@ class StockEnv:
         self.cash = self.initial_investment
         return self.get_state()
 
-
     def step(self, action):
         #value of portfolio before step
         pre_val  = self.get_val()
@@ -113,7 +113,7 @@ class StockEnv:
         reward = post_val - pre_val
         #set done flag to boolean expression checking index against num_steps
         done = self.step_index == (self.num_steps - 1)
-        info = {"Portfolio Val:", post_val}
+        info = {"Val:", post_val}
         return self.get_state(), reward, done, info
 
     def get_state(self):
@@ -138,11 +138,11 @@ class StockEnv:
         buy_index = []
         #0 buy, 1 hold, 2 sell
         for i in range(len(action_vec)):
-        if action_vec[i] == 2:
-            self.cash += (self.stock_price[i] * self.num_stocks[i]) 
-            self.num_stocks[i] = 0
-        if action_vec[i] == 0:
-            buy_index.append(i)
+            if action_vec[i] == 2:
+                self.cash += (self.stock_price[i] * self.num_stocks[i]) 
+                self.num_stocks[i] = 0
+            if action_vec[i] == 0:
+                buy_index.append(i)
         canbuy = True
 
         while canbuy:
@@ -154,4 +154,45 @@ class StockEnv:
                     canbuy = False
         
 class Agent:
-    def __init__(self, state_size, action_size)       
+    def __init__(self, stateShape, actionSize):
+        self.state_shape = stateShape
+        self.action_size = actionSize
+        self.memory = Replay_Memory(stateShape, actionSize, 500)
+        self.gamma = 0.95
+        self.epsilon = 0.15
+        self.model = make_model(stateShape, actionSize, 32)
+    
+    def update_memory(self, state, state1, act, rew, done):
+        self.memory.store_data(state, state1, act, rew, done)
+    
+    def get_act(self, state):
+        if np.random.rand(1) < self.epsilon:
+            return (np.random.choice(self.action_size))
+        act_val = self.model.predict(state)
+        return np.argmax(act_val)
+    
+    def replay(batchsize):
+
+def play_episode(agent, env, mode):
+    #reset env and standardize state data
+    state = env.reset()
+    state = standard.transform([state])
+    done = False
+
+    while not done:
+        #get action given state
+        act = agent.get_act(state)
+        #get next state, rew, done flag and info given action
+        state1, rew, done, info = env.step(act)
+        #standardize next state
+        state1 = standard.transform([state1])
+        #test train mode
+        if mode == 'train':
+            agent.update_memory(state, state1, act, rew, done) 
+            agent.replay(batchsize)
+        state = state1
+    
+    return info['val']
+
+
+
