@@ -101,7 +101,7 @@ class StockEnv:
         self.get_stock_price(self) 
         self.cash = self.initial_investment
         return self.get_state()
-
+    #this is where policy evaluation happens, as an action is passed in an the resulting states and rewards are calculated and returned
     def step(self, action):
         #value of portfolio before step
         pre_val  = self.get_val()
@@ -164,7 +164,7 @@ class Agent:
     
     def update_memory(self, state, state1, act, rew, done):
         self.memory.store_data(state, state1, act, rew, done)
-    
+    #this is where policy improvement happens, a* = argmax(Q(s,a))
     def get_act(self, state):
         if np.random.rand(1) < self.epsilon:
             return (np.random.choice(self.action_size))
@@ -194,5 +194,12 @@ def play_episode(agent, env, mode):
     
     return info['val']
 
+'''Main'''
 
+if __name__ == '__main__':
+    reward_folder = 'rl_rewards'
+    model_folder = 'rl_models'
+    num_episodes = 500
+    initial_investment = 1000
+    batchSize = 32
 
