@@ -9,40 +9,33 @@ from matplotlib.pyplot import sca
 import numpy as np
 from sklearn.preprocessing import StandardScaler
 import itertools
-
+import argparse
+import os
 import tensorflow
 from tensorflow import keras
 from tensorflow.python.summary.summary import scalar
 
-class Replay_Memory:
-    #setting attributes for state and next state (stock data), action, reward, done flag, index, current size and max size of buffer
-    def __init__(self, state_size, action_size, buf_length):
-        self.state = np.empty(size = (buf_length, state_size)) 
-        self.state1 = np.empty(size = (buf_length, state_size))
-        self.action = np.empty (buf_length)
-        self.reward = np.empty(buf_length)
-        self.done_flag = np.empty(buf_length)
-        self.index = 0 
-        self.curr_size = 0
-        self.maxsize = buf_length
-    #function to store obs of episode to buffer and increment index for next entry to buffer until maxsize
-    def store_data(self, curr_state, next_state, act, rew, done):
-        self.state[self.index] = curr_state
-        self.state1[self.index] = next_state
-        self.action[self.index] = act
-        self.reward[self.index] = rew
-        self.done_flag[self.index] = done
-        self.index = (self.index + 1) % self.maxsize
-    #function to sample batch size from buffer up to index at curr_size of buffer
-    def sample(self, batchsize):
-        indices = np.random.randint(0, self.curr_size, size = batchsize)
-        return (self.state[indices], self.state1[indices], self.action[indices], self.reward[indices], self.done_flag[indices])
 
 '''
 Function to Standardize Data
 We need to standardize data before using it -> no reward data since no actions have been performed by agent -> untrained agent so just randomly sample actions for num_steps in episode
 Info is portfolio data
 '''
+def grab_data(name):
+
+    raw_data = np.load(name, allow_pickle = True)
+
+    userinput = ['AAPL']
+
+    for i in range(len(raw_data)):
+        if raw_data[i][0, 6] in userinput:
+            input_data = raw_data[i][:, 1:6]
+            
+
+def makedir(name):
+    if os.path.exists:
+        return
+    os.makedirs(name)
 
 def standardize_data(env):
     #need to get scalar for enviroment,first need to step through for num_steps to populate num_stocks and cash info
@@ -68,6 +61,30 @@ def make_model(input_shape, num_actions, nodes):
 
     model = keras.Model(inputs = inputLayer, outputs = out)
     return model
+
+class Replay_Memory:
+    #setting attributes for state and next state (stock data), action, reward, done flag, index, current size and max size of buffer
+    def __init__(self, state_size, action_size, buf_size):
+        self.state = np.empty(size = (buf_length, state_size)) 
+        self.state1 = np.empty(size = (buf_length, state_size))
+        self.action = np.empty (buf_length)
+        self.reward = np.empty(buf_length)
+        self.done_flag = np.empty(buf_length)
+        self.index = 0 
+        self.curr_size = 0
+        self.maxsize = buf_size
+    #function to store obs of episode to buffer and increment index for next entry to buffer until maxsize
+    def store_data(self, curr_state, next_state, act, rew, done):
+        self.state[self.index] = curr_state
+        self.state1[self.index] = next_state
+        self.action[self.index] = act
+        self.reward[self.index] = rew
+        self.done_flag[self.index] = done
+        self.index = (self.index + 1) % self.maxsize
+    #function to sample batch size from buffer up to index at curr_size of buffer
+    def sample(self, batchsize):
+        indices = np.random.randint(0, self.curr_size, size = batchsize)
+        return (self.state[indices], self.state1[indices], self.action[indices], self.reward[indices], self.done_flag[indices])
 
 class StockEnv:
     #initializing attributes
@@ -160,19 +177,39 @@ class Agent:
         self.memory = Replay_Memory(stateShape, actionSize, 500)
         self.gamma = 0.95
         self.epsilon = 0.15
+        self.epsilon_min = 0.01
+        self.epsilon_decay = 0.01
         self.model = make_model(stateShape, actionSize, 32)
     
     def update_memory(self, state, state1, act, rew, done):
         self.memory.store_data(state, state1, act, rew, done)
     #this is where policy improvement happens, a* = argmax(Q(s,a))
     def get_act(self, state):
+        #this acts as learning rate since best action will always be the same given state without exploration
         if np.random.rand(1) < self.epsilon:
             return (np.random.choice(self.action_size))
         act_val = self.model.predict(state)
         return np.argmax(act_val)
     
-    def replay(batchsize):
+    def replay(self, batchsize):
+        if batchsize > self.memory.curr_size:
+            return
+        states, states1, actions, rewards, done_flags = self.memory.sample(batchsize)
+        #these predictions are the targets -> the recursivity allows for the model to make its own targets since the reward is somewhat of an indicator
+        targets = rewards + self.gamma * np.amax(self.model.predict(states1), axis = 1)
+        #train one episode
+        self.model.train_on_batch(states, targets)
 
+        #check epsilon and have it decay so that as the model learns here it relies less on exploration
+        if self.epsilon > self.epsilon_min:
+            self.epsilon -= self.epsilon_decay
+
+    def load(self, name):
+        self.model.load_weights(name)
+
+    def save(self, name):
+        self.model.save_weights(name)
+    
 def play_episode(agent, env, mode):
     #reset env and standardize state data
     state = env.reset()
@@ -202,4 +239,12 @@ if __name__ == '__main__':
     num_episodes = 500
     initial_investment = 1000
     batchSize = 32
+
+    #set up parser for command line accessibility
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-m', '--mode',type = str, required = True, help = 'use either train or test')
+    args = parser.parse_args()
+
+    makedir(reward_folder)
+    makedir(model_folder)
 
