@@ -11,6 +11,7 @@ from sklearn.preprocessing import StandardScaler
 import itertools
 import argparse
 import os
+import pickle
 import tensorflow
 from tensorflow import keras
 from tensorflow.python.summary.summary import scalar
@@ -31,7 +32,6 @@ def grab_data(name):
         if raw_data[i][0, 6] in userinput:
             input_data = raw_data[i][:, 1:6]
             
-
 def makedir(name):
     if os.path.exists:
         return
@@ -203,12 +203,6 @@ class Agent:
         #check epsilon and have it decay so that as the model learns here it relies less on exploration
         if self.epsilon > self.epsilon_min:
             self.epsilon -= self.epsilon_decay
-
-    def load(self, name):
-        self.model.load_weights(name)
-
-    def save(self, name):
-        self.model.save_weights(name)
     
 def play_episode(agent, env, mode):
     #reset env and standardize state data
@@ -237,14 +231,46 @@ if __name__ == '__main__':
     reward_folder = 'rl_rewards'
     model_folder = 'rl_models'
     num_episodes = 500
-    initial_investment = 1000
+    investment_val = 100000
     batchSize = 32
 
     #set up parser for command line accessibility
     parser = argparse.ArgumentParser()
-    parser.add_argument('-m', '--mode',type = str, required = True, help = 'use either train or test')
+    parser.add_argument('-m', '--mode',type = str, required = True, help = 'choose either "train" or "test"')
     args = parser.parse_args()
 
     makedir(reward_folder)
     makedir(model_folder)
+
+
+
+
+
+
+    enviroment = StockEnv(train_data, investment_val)
+    state_size = enviroment.state_size
+    num_actions = enviroment.action_size
+    agent = Agent(state_size, num_actions)
+    standard = standardize_data(enviroment)
+    portfolio_value = []
+
+    #if mode is test, model has already been trained, so load and reset enviroment below -> also must load existing weights
+    if args.mode == 'test':
+        with open(f'{model_folder}/standard.pkl') as file: #using with statement and formatted literal strings to open weight file
+            standard = pickle.load(file)
+        enviroment = StockEnv(test_data, investment_val)
+        epsilon = 0.01 #lower epsilon now that agent should be pretty good at choosing action given state, keep epsilon above 0 so that trader is not deterministic
+        agent.model.load_weights(f'{model_folder}/policy.h5')
+
+
+    for episode in num_episodes:
+        portfolio_value.append(play_episode(agent, enviroment, args.mode))
+    
+    #if mode is train, need to save resulting weights and enviroment created from playing all episodes
+    if args.mode == 'train':
+        agent.model.save_weights(f'{model_folder}/policy.h5')
+        with open(f'{model_folder}/standard.pkl', 'wb') as f: #must specify write and binary to avoid errors in loading
+            pickle.dump(standard, f)
+    
+    np.save(f'{rl_rewards}/{args.mode}.npy', portfolio_value)
 
