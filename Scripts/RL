@@ -1,4 +1,3 @@
-
 '''
 Initialize Buffer in __init__ for storing each variable of length size
 Class replay w attribute for state with size stocks x timesteps x features -> going to first try for one stock
@@ -26,12 +25,16 @@ def grab_data(name):
 
     raw_data = np.load(name, allow_pickle = True) 
     tickers = ['AAPL']
-    #initialize array for data at # tickers x timesteps x features
-    input_data = np.zeros(shape = (len(tickers, raw_data[0].shape[0], raw_data[0].shape[1])))
+    #initialize array for data at # tickers x timesteps x features -> features are explicitly set since no good way to generalize this aspect for any data
+    input_data = np.zeros(shape = (len(tickers), raw_data[0].shape[0], 5))
+
+    #j is index for new data, and will be incremented from 0 to num_stocks as tickers are found in raw data
+    j = 0
 
     for i in range(len(raw_data)):
         if raw_data[i][0, 6] in tickers:
-            input_data[i, :, :] = raw_data[i][:, 1:6]
+            input_data[j, :, :] = raw_data[i][:, 1:6]
+            j = j + 1
     return input_data
 
 def makedir(name):
@@ -55,23 +58,25 @@ def standardize_data(env):
 
 def make_model(input_shape, num_actions, nodes):
     # making model 
-    inputLayer = keras.layers.Input(shape = input_shape)
+    inputLayer = keras.layers.Input(shape = (1, input_shape))
     lstm1 = keras.layers.LSTM(nodes, activation = 'tanh', recurrent_activation = 'sigmoid', return_sequences = True)(inputLayer) 
     lstm2 = keras.layers.LSTM(nodes, activation = 'tanh', recurrent_activation = 'sigmoid')(lstm1)
     dense1 = keras.layers.Dense(50)(lstm2)
     out = keras.layers.Dense(num_actions)(dense1)
-
-    model = keras.Model(inputs = inputLayer, outputs = out)
+    model = keras.Model(inputLayer, out)
+    model.compile(loss = 'mse', optimizer= 'adam')
+    model = np.vectorize(model)
     return model
+
 
 class Replay_Memory:
     #setting attributes for state and next state (stock data), action, reward, done flag, index, current size and max size of buffer
     def __init__(self, state_size, action_size, buf_size):
-        self.state = np.empty(size = (buf_length, state_size)) 
-        self.state1 = np.empty(size = (buf_length, state_size))
-        self.action = np.empty (buf_length)
-        self.reward = np.empty(buf_length)
-        self.done_flag = np.empty(buf_length)
+        self.state = np.empty(shape = (buf_size, state_size)) 
+        self.state1 = np.empty(shape = (buf_size, state_size))
+        self.action = np.empty (buf_size)
+        self.reward = np.empty(buf_size)
+        self.done_flag = np.empty(buf_size)
         self.index = 0 
         self.curr_size = 0
         self.maxsize = buf_size
@@ -93,9 +98,9 @@ class StockEnv:
     def __init__(self, data, initial_investment):
         #data is num_stocks, timesteps, features
         self.stock_data = data
-        self.num_stocks = self.stock_data[0]
-        self.num_steps = self.stock_data[1]
-        self.num_features = self.stock_data[2]
+        self.num_stocks = self.stock_data.shape[0]
+        self.num_steps = self.stock_data.shape[1]
+        self.num_features = self.stock_data.shape[2]
         self.initial_investment = initial_investment
         self.step_index = 0
         self.stock_owned = []
@@ -222,7 +227,7 @@ def play_episode(agent, env, mode):
         #test train mode
         if mode == 'train':
             agent.update_memory(state, state1, act, rew, done) 
-            agent.replay(batchsize)
+            agent.replay(batchSize)
         state = state1
     
     return info['val']
@@ -233,13 +238,13 @@ if __name__ == '__main__':
     #config for preset parameters
     reward_folder = 'rl_rewards'
     model_folder = 'rl_models'
-    num_episodes = 500
+    num_episodes = 1
     investment_val = 100000
     batchSize = 32
 
     #set up parser for command line accessibility
     parser = argparse.ArgumentParser()
-    parser.add_argument('-m', '--mode',type = str, required = True, help = 'choose either "train" or "test"')
+    parser.add_argument('-mode', type = str, required = True, help = 'choose either "train" or "test"')
     args = parser.parse_args()
     
     #make dir for folders
@@ -257,11 +262,15 @@ if __name__ == '__main__':
     t = 10 #number of time stamps for each sequence                         <THIS MAY BE NECESSARY
     n = len(data) - t #length of usable timesteps for series creation
     '''
-
+    #choosing amount of data for training
     num_train = num_timesteps * 2 // 3
     #Initialize Time Series inputs
-    x_train = np.zeros(shape = (num_stocks, num_train, num_features))
-    x_test = np.zeros(shape = (num_stocks, num_timesteps - num_train, num_features))
+    train_data = np.zeros(shape = (num_stocks, num_train, num_features))
+    test_data = np.zeros(shape = (num_stocks, num_timesteps - num_train, num_features))
+
+    for n in range(num_stocks):
+        train_data[n, :, :] = data[n, :num_train, :]
+        test_data[n, :, :] = data[n, num_train:num_timesteps, :]
 
     enviroment = StockEnv(train_data, investment_val)
     state_size = enviroment.state_size
@@ -288,7 +297,7 @@ if __name__ == '__main__':
         with open(f'{model_folder}/standard.pkl', 'wb') as f: #must specify write and binary to avoid errors in loading
             pickle.dump(standard, f)
     
-    np.save(f'{rl_rewards}/{args.mode}.npy', portfolio_value)
+    np.save(f'{reward_folder}/{args.mode}.npy', portfolio_value)
 
 
 

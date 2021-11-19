@@ -21,6 +21,7 @@ for i in range(len(raw_data)):
         input_data = raw_data[i][:, 1:6]
         returns = raw_data[i][:, -1]
 
+print(len(raw_data))
 
 '''
 Just need to make x data into time series for input
