@@ -1,6 +1,8 @@
-import itertools
-i = [0, 1, 2]
-list = list(itertools.product(i, repeat = 3))
+import numpy as np
+
+data = np.zeros(shape = (4 , 100, 100) )
+num_features = data.shape[0] 
 
 
-print(list)
+
+print(num_features)

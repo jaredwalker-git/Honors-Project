@@ -24,14 +24,16 @@ Info is portfolio data
 '''
 def grab_data(name):
 
-    raw_data = np.load(name, allow_pickle = True)
-
-    userinput = ['AAPL']
+    raw_data = np.load(name, allow_pickle = True) 
+    tickers = ['AAPL']
+    #initialize array for data at # tickers x timesteps x features
+    input_data = np.zeros(shape = (len(tickers, raw_data[0].shape[0], raw_data[0].shape[1])))
 
     for i in range(len(raw_data)):
-        if raw_data[i][0, 6] in userinput:
-            input_data = raw_data[i][:, 1:6]
-            
+        if raw_data[i][0, 6] in tickers:
+            input_data[i, :, :] = raw_data[i][:, 1:6]
+    return input_data
+
 def makedir(name):
     if os.path.exists:
         return
@@ -228,6 +230,7 @@ def play_episode(agent, env, mode):
 '''Main'''
 
 if __name__ == '__main__':
+    #config for preset parameters
     reward_folder = 'rl_rewards'
     model_folder = 'rl_models'
     num_episodes = 500
@@ -238,14 +241,27 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-m', '--mode',type = str, required = True, help = 'choose either "train" or "test"')
     args = parser.parse_args()
-
+    
+    #make dir for folders
     makedir(reward_folder)
     makedir(model_folder)
 
+    #grab data and pull dimensions from it
+    data = grab_data('inputData.npy')
+    num_stocks = data.shape[0]
+    num_timesteps = data.shape[1]
+    num_features = data.shape[2]
+       
+    #split to test vs train data
+    '''
+    t = 10 #number of time stamps for each sequence                         <THIS MAY BE NECESSARY
+    n = len(data) - t #length of usable timesteps for series creation
+    '''
 
-
-
-
+    num_train = num_timesteps * 2 // 3
+    #Initialize Time Series inputs
+    x_train = np.zeros(shape = (num_stocks, num_train, num_features))
+    x_test = np.zeros(shape = (num_stocks, num_timesteps - num_train, num_features))
 
     enviroment = StockEnv(train_data, investment_val)
     state_size = enviroment.state_size
@@ -274,3 +290,10 @@ if __name__ == '__main__':
     
     np.save(f'{rl_rewards}/{args.mode}.npy', portfolio_value)
 
+
+
+    
+    
+
+
+    
