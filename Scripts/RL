@@ -13,6 +13,8 @@ import os
 import pickle
 import tensorflow
 from tensorflow import keras
+from tensorflow.python.keras.engine.sequential import Sequential
+from tensorflow.python.ops.gen_math_ops import tanh
 from tensorflow.python.summary.summary import scalar
 
 
@@ -24,7 +26,7 @@ Info is portfolio data
 def grab_data(name):
 
     raw_data = np.load(name, allow_pickle = True) 
-    tickers = ['AAPL']
+    tickers = ['AAL', 'AAPL']
     #initialize array for data at # tickers x timesteps x features -> features are explicitly set since no good way to generalize this aspect for any data
     input_data = np.zeros(shape = (len(tickers), raw_data[0].shape[0], 5))
 
@@ -55,19 +57,6 @@ def standardize_data(env):
     standard = StandardScaler()
     standard.fit(states)
     return standard
-
-def make_model(input_shape, num_actions, nodes):
-    # making model 
-    inputLayer = keras.layers.Input(shape = (1, input_shape))
-    lstm1 = keras.layers.LSTM(nodes, activation = 'tanh', recurrent_activation = 'sigmoid', return_sequences = True)(inputLayer) 
-    lstm2 = keras.layers.LSTM(nodes, activation = 'tanh', recurrent_activation = 'sigmoid')(lstm1)
-    dense1 = keras.layers.Dense(50)(lstm2)
-    out = keras.layers.Dense(num_actions)(dense1)
-    model = keras.Model(inputLayer, out)
-    model.compile(loss = 'mse', optimizer= 'adam')
-    model = np.vectorize(model)
-    return model
-
 
 class Replay_Memory:
     #setting attributes for state and next state (stock data), action, reward, done flag, index, current size and max size of buffer
@@ -103,8 +92,8 @@ class StockEnv:
         self.num_features = self.stock_data.shape[2]
         self.initial_investment = initial_investment
         self.step_index = 0
-        self.stock_owned = []
-        self.stock_price = []
+        self.stock_owned = np.zeros(shape = self.num_stocks)
+        self.stock_price = np.zeros(shape = self.num_stocks)
         self.cash = 0
          
         #number of different action = 3 actions ^ num_stocks    
@@ -120,29 +109,31 @@ class StockEnv:
             self.stock_price[j] = self.stock_data[j, 0, 0]
 
     def reset(self):
-        self.stock_owned = np.zeros(shape = len(self.num_stocks))
+        self.stock_owned = np.zeros(shape = self.num_stocks)
         self.step_index = 0
         self.get_stock_price(self) 
         self.cash = self.initial_investment
+        
         return self.get_state()
+    
     #this is where policy evaluation happens, as an action is passed in an the resulting states and rewards are calculated and returned
     def step(self, action):
         #value of portfolio before step
         pre_val  = self.get_val()
         self.step_index += 1
         #get stock prices for this index
-        self.get_stock_price(self)
+        self.get_stock_price()
         self.trade(action)
         post_val = self.get_val()
         reward = post_val - pre_val
         #set done flag to boolean expression checking index against num_steps
         done = self.step_index == (self.num_steps - 1)
-        info = {"Val:", post_val}
+        info = {'Val:', post_val}
         return self.get_state(), reward, done, info
 
     def get_state(self):
         #initialize state
-        state = np.empty(shape = len(self.state_size))
+        state = np.empty(shape = self.state_size)
         #set first indices to quantities of each stock
         state[:self.num_stocks] = self.stock_owned
         #set next indices to price of each stock
@@ -154,26 +145,33 @@ class StockEnv:
         return state
     
     def get_val(self):
-        val = np.dot(self.num_stocks, self.stock_price)
+        val = self.stock_owned.dot(self.stock_price)
         return val
 
     def trade(self, action):
         action_vec = self.action_space[action]
-        buy_index = []
+        buy_stocks = []
+        sell_stocks = []
         #0 buy, 1 hold, 2 sell
+        
         for i in range(len(action_vec)):
             if action_vec[i] == 2:
-                self.cash += (self.stock_price[i] * self.num_stocks[i]) 
-                self.num_stocks[i] = 0
+                sell_stocks.append(i)
             if action_vec[i] == 0:
-                buy_index.append(i)
+                buy_stocks.append(i)
+
+        if sell_stocks:
+            for i in sell_stocks:
+                self.cash += self.stock_price[i] * self.stock_owned[i] 
+                self.stock_owned[i] = 0
+
         canbuy = True
 
         while canbuy:
-            for i in buy_index:
+            for i in buy_stocks:
                 if self.cash > self.stock_price[i]:
                     self.cash -= self.stock_price[i]
-                    self.num_stocks[i] += 1   
+                    self.stock_owned[i] += 1   
                 else:
                     canbuy = False
         
@@ -186,7 +184,8 @@ class Agent:
         self.epsilon = 0.15
         self.epsilon_min = 0.01
         self.epsilon_decay = 0.01
-        self.model = make_model(stateShape, actionSize, 32)
+        self.model = Sequential()
+        self.make_model(stateShape, actionSize, 32)
     
     def update_memory(self, state, state1, act, rew, done):
         self.memory.store_data(state, state1, act, rew, done)
@@ -210,6 +209,15 @@ class Agent:
         #check epsilon and have it decay so that as the model learns here it relies less on exploration
         if self.epsilon > self.epsilon_min:
             self.epsilon -= self.epsilon_decay
+
+    def make_model(self, input_shape, num_actions, nodes):
+        # making model 
+        self.model = keras.models.Sequential()
+        self.model.add(keras.layers.Input(shape = (1, input_shape)))
+        self.model.add(keras.layers.LSTM(nodes, activation = 'tanh', recurrent_activation = 'sigmoid', return_sequences = True))
+        self.model.add(keras.layers.LSTM(nodes, activation = 'tanh', recurrent_activation = 'sigmoid'))
+        #self.model.add(keras.layers.Dense(num_actions)) possibly not working due to labels notbeing right
+        self.model.compile(loss = 'mse', optimizer= 'adam')
     
 def play_episode(agent, env, mode):
     #reset env and standardize state data
@@ -286,7 +294,6 @@ if __name__ == '__main__':
         enviroment = StockEnv(test_data, investment_val)
         epsilon = 0.01 #lower epsilon now that agent should be pretty good at choosing action given state, keep epsilon above 0 so that trader is not deterministic
         agent.model.load_weights(f'{model_folder}/policy.h5')
-
 
     for episode in num_episodes:
         portfolio_value.append(play_episode(agent, enviroment, args.mode))
