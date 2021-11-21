@@ -17,19 +17,18 @@ from tensorflow.python.keras.engine.sequential import Sequential
 from tensorflow.python.ops.gen_math_ops import tanh
 from tensorflow.python.summary.summary import scalar
 
-
 '''
 Function to Standardize Data
 We need to standardize data before using it -> no reward data since no actions have been performed by agent -> untrained agent so just randomly sample actions for num_steps in episode
 Info is portfolio data
 '''
+
 def grab_data(name):
 
     raw_data = np.load(name, allow_pickle = True) 
     tickers = ['AAL', 'AAPL']
     #initialize array for data at # tickers x timesteps x features -> features are explicitly set since no good way to generalize this aspect for any data
-    input_data = np.zeros(shape = (len(tickers), raw_data[0].shape[0], 5))
-
+    input_data = np.zeros(shape = (len(tickers), raw_data[1].shape[0], 5))
     #j is index for new data, and will be incremented from 0 to num_stocks as tickers are found in raw data
     j = 0
 
@@ -43,20 +42,6 @@ def makedir(name):
     if os.path.exists:
         return
     os.makedirs(name)
-
-def standardize_data(env):
-    #need to get scalar for enviroment,first need to step through for num_steps to populate num_stocks and cash info
-    states = [] #set list to fill with states given random action
-    for _ in range(env.num_steps):
-        action = np.random.choice(env.action_size)
-        state, reward, done, info = env.step(action)
-        states.append(state)
-        if done:
-            break
-    
-    standard = StandardScaler()
-    standard.fit(states)
-    return standard
 
 class Replay_Memory:
     #setting attributes for state and next state (stock data), action, reward, done flag, index, current size and max size of buffer
@@ -91,13 +76,14 @@ class StockEnv:
         self.num_steps = self.stock_data.shape[1]
         self.num_features = self.stock_data.shape[2]
         self.initial_investment = initial_investment
-        self.step_index = 0
-        self.stock_owned = np.zeros(shape = self.num_stocks)
-        self.stock_price = np.zeros(shape = self.num_stocks)
-        self.cash = 0
-         
-        #number of different action = 3 actions ^ num_stocks    
-        self.action_size = np.arange( 3 ** self.num_stocks )
+        self.step_index = None
+        self.stock_owned = None
+        self.stock_price = None
+        self.cash = None
+        
+       
+        #number of different action = 3 actions ^ num_stocks -   
+        self.action_list = np.arange( 3 ** self.num_stocks )
         #enumerate all action space by creating cartesian products of array repeated number of times = number of stocks to act on
         self.action_space = list(itertools.product([0 , 1, 2], repeat = self.num_stocks) )
         #state space for price, quantity, num features for each stock +1 for cash held
@@ -106,12 +92,13 @@ class StockEnv:
     def get_stock_price(self):
         for j in range(self.num_stocks):
             #set each stock price to that at initial step
+            self.stock_price = np.zeros(self.num_stocks)
             self.stock_price[j] = self.stock_data[j, 0, 0]
 
     def reset(self):
-        self.stock_owned = np.zeros(shape = self.num_stocks)
+        self.stock_owned = np.zeros(self.num_stocks)
         self.step_index = 0
-        self.get_stock_price(self) 
+        self.get_stock_price() 
         self.cash = self.initial_investment
         
         return self.get_state()
@@ -127,7 +114,7 @@ class StockEnv:
         post_val = self.get_val()
         reward = post_val - pre_val
         #set done flag to boolean expression checking index against num_steps
-        done = self.step_index == (self.num_steps - 1)
+        done = (self.step_index == self.num_steps - 1) #set done flag to true once the step index has reached the num of steps
         info = {'Val:', post_val}
         return self.get_state(), reward, done, info
 
@@ -141,7 +128,7 @@ class StockEnv:
         #set final indices to features of each stock
         for k in range(self.num_stocks):
             #indexing num_features spaces at a time for num_stocks so that features for each stock are saved in state space
-            state[(k+1)*2*self.num_stocks:((k+1)*2*self.num_stocks+self.num_features)] = self.stock_data[k, self.step_index, :]
+            state[(k+1)*2*self.num_stocks:(k+1)*2*self.num_stocks+self.num_features] = self.stock_data[k, self.step_index, :]
         return state
     
     def get_val(self):
@@ -153,11 +140,10 @@ class StockEnv:
         buy_stocks = []
         sell_stocks = []
         #0 buy, 1 hold, 2 sell
-        
-        for i in range(len(action_vec)):
-            if action_vec[i] == 2:
+        for i, a in enumerate(action_vec):
+            if a == 2:
                 sell_stocks.append(i)
-            if action_vec[i] == 0:
+            if a == 0:
                 buy_stocks.append(i)
 
         if sell_stocks:
@@ -165,16 +151,32 @@ class StockEnv:
                 self.cash += self.stock_price[i] * self.stock_owned[i] 
                 self.stock_owned[i] = 0
 
-        canbuy = True
-
-        while canbuy:
-            for i in buy_stocks:
-                if self.cash > self.stock_price[i]:
-                    self.cash -= self.stock_price[i]
-                    self.stock_owned[i] += 1   
-                else:
-                    canbuy = False
+        if buy_stocks:
+            canbuy = True
+            while canbuy:
+                for i in buy_stocks:
+                    #print(f'Cash: {self.cash}')
+                    #print(f'Price: {self.stock_price[i]}')
+                    if self.cash > self.stock_price[i]:
+                        self.cash -= self.stock_price[i]
+                        self.stock_owned[i] += 1   
+                    else:
+                        canbuy = False
         
+    def standardize_data(self):
+        #need to get scalar for enviroment,first need to step through for num_steps to populate num_stocks and cash info
+        states = [] #set list to fill with states given random action
+        for _ in range(self.num_steps - 1):
+            action = np.random.choice(self.action_list)
+            state, reward, done, info = self.step(action)
+            states.append(state)
+            if done:
+                break
+    
+        standard = StandardScaler()
+        standard.fit(states)
+        return standard   
+ 
 class Agent:
     def __init__(self, stateShape, actionSize):
         self.state_shape = stateShape
@@ -203,8 +205,11 @@ class Agent:
         states, states1, actions, rewards, done_flags = self.memory.sample(batchsize)
         #these predictions are the targets -> the recursivity allows for the model to make its own targets since the reward is somewhat of an indicator
         targets = rewards + self.gamma * np.amax(self.model.predict(states1), axis = 1)
+        complete_target = self.model.predict(states)
+        complete_target[np.arange(batchsize), actions] = targets
+
         #train one episode
-        self.model.train_on_batch(states, targets)
+        self.model.train_on_batch(states, complete_target)
 
         #check epsilon and have it decay so that as the model learns here it relies less on exploration
         if self.epsilon > self.epsilon_min:
@@ -214,29 +219,33 @@ class Agent:
         # making model 
         self.model = keras.models.Sequential()
         self.model.add(keras.layers.Input(shape = (1, input_shape)))
-        self.model.add(keras.layers.LSTM(nodes, activation = 'tanh', recurrent_activation = 'sigmoid', return_sequences = True))
-        self.model.add(keras.layers.LSTM(nodes, activation = 'tanh', recurrent_activation = 'sigmoid'))
-        #self.model.add(keras.layers.Dense(num_actions)) possibly not working due to labels notbeing right
+        #self.model.add(keras.layers.LSTM(nodes, activation = 'tanh', recurrent_activation = 'sigmoid', return_sequences = True))
+        #self.model.add(keras.layers.LSTM(nodes, activation = 'tanh', recurrent_activation = 'sigmoid'))
+        self.model.add(keras.layers.Dense(nodes, activation = 'tanh')) 
+        self.model.add(keras.layers.Dense(num_actions)) 
         self.model.compile(loss = 'mse', optimizer= 'adam')
     
 def play_episode(agent, env, mode):
     #reset env and standardize state data
     state = env.reset()
-    state = standard.transform([state])
+    state = env.standardize_data().transform([state])
     done = False
 
     while not done:
         #get action given state
         act = agent.get_act(state)
         #get next state, rew, done flag and info given action
+        print(f'STEP INDEX: {env.step_index}')
         state1, rew, done, info = env.step(act)
         #standardize next state
-        state1 = standard.transform([state1])
+        state1 = env.standardize_data().transform([state1])
         #test train mode
         if mode == 'train':
             agent.update_memory(state, state1, act, rew, done) 
             agent.replay(batchSize)
         state = state1
+    
+    print('BROKEN OUT')
     
     return info['val']
 
@@ -247,12 +256,12 @@ if __name__ == '__main__':
     reward_folder = 'rl_rewards'
     model_folder = 'rl_models'
     num_episodes = 1
-    investment_val = 100000
+    investment_val = 1000
     batchSize = 32
 
     #set up parser for command line accessibility
     parser = argparse.ArgumentParser()
-    parser.add_argument('-mode', type = str, required = True, help = 'choose either "train" or "test"')
+    parser.add_argument('--mode', type = str, required = True, help = 'choose either "train" or "test"')
     args = parser.parse_args()
     
     #make dir for folders
@@ -271,20 +280,22 @@ if __name__ == '__main__':
     n = len(data) - t #length of usable timesteps for series creation
     '''
     #choosing amount of data for training
-    num_train = num_timesteps * 2 // 3
+    num_train = num_timesteps // 2
     #Initialize Time Series inputs
     train_data = np.zeros(shape = (num_stocks, num_train, num_features))
-    test_data = np.zeros(shape = (num_stocks, num_timesteps - num_train, num_features))
-
+    test_data = np.zeros(shape = (num_stocks, num_train + 1, num_features))
+    
     for n in range(num_stocks):
         train_data[n, :, :] = data[n, :num_train, :]
-        test_data[n, :, :] = data[n, num_train:num_timesteps, :]
+        test_data[n, :, :] = data[n, num_train:, :]
 
+    print(f'train data time steps: {train_data.shape[1]}')
     enviroment = StockEnv(train_data, investment_val)
+    print(f'num steps : {enviroment.num_steps}')
     state_size = enviroment.state_size
-    num_actions = enviroment.action_size
+    num_actions = len(enviroment.action_list)
     agent = Agent(state_size, num_actions)
-    standard = standardize_data(enviroment)
+    #standard = standardize_data(enviroment)
     portfolio_value = []
 
     #if mode is test, model has already been trained, so load and reset enviroment below -> also must load existing weights
@@ -295,7 +306,7 @@ if __name__ == '__main__':
         epsilon = 0.01 #lower epsilon now that agent should be pretty good at choosing action given state, keep epsilon above 0 so that trader is not deterministic
         agent.model.load_weights(f'{model_folder}/policy.h5')
 
-    for episode in num_episodes:
+    for episode in range(num_episodes):
         portfolio_value.append(play_episode(agent, enviroment, args.mode))
     
     #if mode is train, need to save resulting weights and enviroment created from playing all episodes
