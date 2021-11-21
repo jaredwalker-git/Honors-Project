@@ -44,6 +44,7 @@ def load_data():
             print(input_data_list[i])
 
     inputData = np.array(good_data, dtype = object)    
+    print(inputData)
     np.save('inputData.npy', inputData)
 
     
