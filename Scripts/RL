@@ -4,14 +4,15 @@ Class replay w attribute for state with size stocks x timesteps x features -> go
 Modulous index with maxsize -> sets index back to 0
 '''
 
-from matplotlib.pyplot import sca
+from matplotlib.pyplot import hist, sca
 import numpy as np
 from sklearn.preprocessing import StandardScaler
 import itertools
 import argparse
 import os
 import pickle
-import tensorflow
+import matplotlib.pyplot as plt
+
 from tensorflow import keras
 from tensorflow.python.keras.engine.sequential import Sequential
 from tensorflow.python.ops.gen_math_ops import tanh
@@ -37,6 +38,27 @@ def grab_data(name):
             input_data[j, :, :] = raw_data[i][:, 1:6]
             j = j + 1
     return input_data
+
+def make_portfolio_hist():
+    if args.returns == 'hist':
+        plt.hist(portfolio_value, bins = len(portfolio_value)//2)
+        plt.xlabel('Value')
+        plt.ylabel('Frequency')
+        plt.show()
+    
+    elif args.returns == 'line':
+        plt.plot(np.arange(len(portfolio_value)), portfolio_value)
+    
+    elif args.returns == 'both':
+        plt.hist(portfolio_value, bins = len(portfolio_value)//2)
+        plt.xlabel('Value')
+        plt.ylabel('Frequency')
+        plt.show()
+        plt.plot(np.arange(len(portfolio_value)), portfolio_value)
+        plt.show()
+    
+    else: 
+        return
 
 def makedir(name):
     if os.path.exists(name):
@@ -263,13 +285,14 @@ if __name__ == '__main__':
     #config for preset parameters
     reward_folder = 'rl_rewards'
     model_folder = 'rl_models'
-    num_episodes = 1
+    num_episodes = 10
     investment_val = 1000
     batchSize = 32
 
     #set up parser for command line accessibility
     parser = argparse.ArgumentParser()
     parser.add_argument('--mode', type = str, required = True, help = 'choose either "train" or "test"')
+    parser.add_argument('--returns', type = str, required = True, help = 'choose either "hist", "line", "both", or "none"')
     args = parser.parse_args()
     
     #make dir for folders
@@ -308,7 +331,7 @@ if __name__ == '__main__':
 
     #if mode is test, model has already been trained, so load and reset enviroment below -> also must load existing weights
     if args.mode == 'test':
-        with open(f'{model_folder}/standard.pkl') as file: #using with statement and formatted literal strings to open weight file
+        with open(f'{model_folder}/standard.pkl', 'rb') as file: #using with statement and formatted literal strings to open weight file
             standard = pickle.load(file)
         enviroment = StockEnv(test_data, investment_val)
         epsilon = 0.01 #lower epsilon now that agent should be pretty good at choosing action given state, keep epsilon above 0 so that trader is not deterministic
@@ -323,7 +346,10 @@ if __name__ == '__main__':
         with open(f'{model_folder}/standard.pkl', 'wb') as f: #must specify write and binary to avoid errors in loading
             pickle.dump(standard, f)
     
+    make_portfolio_hist()
     np.save(f'{reward_folder}/{args.mode}.npy', portfolio_value)
+
+    
 
 
 
