@@ -285,7 +285,7 @@ if __name__ == '__main__':
     #config for preset parameters
     reward_folder = 'rl_rewards'
     model_folder = 'rl_models'
-    num_episodes = 10
+    num_episodes = 100
     investment_val = 1000
     batchSize = 32
 
@@ -320,9 +320,7 @@ if __name__ == '__main__':
         train_data[n, :, :] = data[n, :num_train, :]
         test_data[n, :, :] = data[n, num_train:, :]
 
-    #print(f'train data time steps: {train_data.shape[1]}')
     enviroment = StockEnv(train_data, investment_val)
-    #print(f'num steps : {enviroment.num_steps}')
     state_size = enviroment.state_size
     num_actions = len(enviroment.action_list)
     agent = Agent(state_size, num_actions)
@@ -342,7 +340,7 @@ if __name__ == '__main__':
     
     #if mode is train, need to save resulting weights and enviroment created from playing all episodes
     if args.mode == 'train':
-        agent.model.save_weights(f'{model_folder}/policy.h5')
+        agent.model.save_weights(f'{model_folder}/policyafter100ep.h5')
         with open(f'{model_folder}/standard.pkl', 'wb') as f: #must specify write and binary to avoid errors in loading
             pickle.dump(standard, f)
     
