@@ -336,7 +336,9 @@ if __name__ == '__main__':
         agent.model.load_weights(f'{model_folder}/policy.h5')
     
     for episode in range(num_episodes):
+        print(f'Episode {episode + 1} running...')
         portfolio_value.append(play_episode(agent, enviroment, args.mode))
+        
     
     #if mode is train, need to save resulting weights and enviroment created from playing all episodes
     if args.mode == 'train':
