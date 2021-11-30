@@ -52,7 +52,7 @@ def makedir(name):
         return
     os.makedirs(name)
 
-class Replay_Memory:
+class Sample_Memory:
     #setting attributes for state and next state (stock data), action, reward, done flag, index, current size and max size of buffer
     def __init__(self, state_size, action_size, buf_size):
         self.state = np.empty(shape = (buf_size, state_size)) 
@@ -143,7 +143,7 @@ class StockEnv:
         #set final indices to features of each stock
         for k in range(self.num_stocks):
             #indexing num_features spaces at a time for num_stocks so that features for each stock are saved in state space
-            state[(k+1)*2*self.num_stocks:(k+1)*2*self.num_stocks+self.num_features] = self.stock_data[k, self.step_index, :]
+            state[2*self.num_stocks+(k*num_features):2*self.num_stocks+(k*num_features)+self.num_features] = self.stock_data[k, self.step_index, :]
         return state
     
     def get_val(self):
@@ -194,8 +194,8 @@ class Agent:
     def __init__(self, stateShape, actionSize):
         self.state_shape = stateShape
         self.action_size = actionSize
-        self.memory = Replay_Memory(stateShape, actionSize, 500)
-        self.gamma = 0.9 #gamma is scaling factor for future return in value function
+        self.memory = Sample_Memory(stateShape, actionSize, 500)
+        self.gamma = 0.95 #gamma is scaling factor for future return in value function
         self.epsilon = 1 #starts at 1 which is completely random action
         self.epsilon_min = 0.01 #always have 1% chance of random action -> let agent explore
         self.epsilon_decay = 0.005 #as the agent learns, want to act less randomly and more on experience
@@ -206,13 +206,13 @@ class Agent:
         self.memory.store_data(state, state1, act, rew, done)
     #this is where policy improvement happens, a* = argmax(Q(s,a))
     def get_act(self, state):
-        #this acts as learning rate since best action will always be the same given state without exploration
+        #this is excersizing of a policy with exploration
         if np.random.rand(1) < self.epsilon:
             return (np.random.choice(self.action_size))
         act_val = self.model.predict(state)
         return np.argmax(act_val)
     
-    def replay(self, batchsize):
+    def learn(self, batchsize):
         if batchsize > self.memory.curr_size:
             return
         batch = self.memory.sample(batchsize)
@@ -221,10 +221,8 @@ class Agent:
         actions = batch['actions']
         rewards = batch['rewards']
         done = batch['done']
-        #target return estimated with reward + predicted future return which can be given by the value of the max of action policy since there is no activation function
+        #target return estimated -> this is the prediction problem of reinforcement learning
         targets = rewards + self.gamma * np.amax(self.model.predict(states1), axis = 1)
-        #complete target returns action policies given a state (batchsize x number actions)
-        #complete_target = self.model.predict(states)
 
         #train one episode
         self.model.train_on_batch(states, targets)
@@ -250,16 +248,16 @@ def play_episode(agent, env, mode):
     done = False
 
     while not done:
-        #get action given state
+        #get action given state using current policy
         act = agent.get_act(state)
-        #get next state, rew, done flag and info given action
+        #evaluation of a policy
         state1, rew, done, info = env.step(act)
         #standardize next state
         state1 = standard.transform([state1])
-        #test train mode
+        #improvement of the policy
         if (mode == 'train') or (mode == 'train_cont'):
             agent.update_memory(state, state1, act, rew, done) 
-            agent.replay(batchSize)
+            agent.learn(batchSize)
         state = state1
         
     return info['val']
@@ -270,9 +268,9 @@ if __name__ == '__main__':
     #config for preset parameters
     reward_folder = 'rl_rewards'
     model_folder = 'rl_models'
-    num_episodes = 50
+    num_episodes = 100
     investment_val = 10000
-    batchSize = 32
+    batchSize = 64
 
 
     #set up parser for command line accessibility
@@ -318,13 +316,13 @@ if __name__ == '__main__':
             standard = pickle.load(file)
         enviroment = StockEnv(test_data, investment_val)
         agent.epsilon = 0.01 #lower epsilon now that agent should be pretty good at choosing action given state, keep epsilon above 0 so that trader is not deterministic
-        agent.model.load_weights(f'{model_folder}/policyafter100ep.h5')
+        agent.model.load_weights(f'{model_folder}/policy.h5')
         print('Model Load Complete')
     elif args.mode == 'train_cont':
         with open(f'{model_folder}/standard.pkl', 'rb') as file: #using with statement and formatted literal strings to open weight file
             standard = pickle.load(file)
         enviroment = StockEnv(test_data, investment_val)
-        agent.model.load_weights(f'{model_folder}/policyafter100ep.h5')
+        agent.model.load_weights(f'{model_folder}/policy.h5')
         print('Model Load Complete')
 
     
@@ -335,7 +333,7 @@ if __name__ == '__main__':
     
     #if mode is train, need to save resulting weights and enviroment created from playing all episodes
     if (args.mode == 'train') or (args.mode == 'train_cont'):
-        agent.model.save_weights(f'{model_folder}/policyafter100ep.h5')
+        agent.model.save_weights(f'{model_folder}/policy4stocks.h5')
         with open(f'{model_folder}/standard.pkl', 'wb') as f: #must specify write and binary to avoid errors in loading
             pickle.dump(standard, f)
  

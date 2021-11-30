@@ -67,7 +67,7 @@ out = keras.layers.Dense(1, activation = 'sigmoid')(dense1) #will want to change
 model = keras.Model(inputs = inputLayer, outputs = out)
 model.compile(optimizer = 'adam', loss = 'binary_crossentropy',  metrics = 'accuracy')
 model.summary
-history = model.fit(x_train, y_train, epochs = 5, validation_data = (x_test, y_test))
+history = model.fit(x_train, y_train, epochs = 200, validation_data = (x_test, y_test))
 
 print(history.history.keys())
 
