@@ -237,7 +237,7 @@ class Agent:
         self.model.add(keras.layers.Dense(nodes, activation = 'relu')) 
         self.model.add(keras.layers.Dense(nodes, activation = 'relu')) 
         self.model.add(keras.layers.Dense(num_actions)) 
-        self.model.compile(loss = 'mse', optimizer = keras.optimizers.Adam)
+        self.model.compile(loss = 'mse', optimizer = keras.optimizers.Adam(lr = 0.001))
     
 def play_episode(agent, env, mode):
     #reset env and standardize state data
@@ -325,7 +325,7 @@ if __name__ == '__main__':
             standard = pickle.load(file)
         enviroment = StockEnv(test_data, investment_val)
         agent.epsilon = 0.01 #lower epsilon now that agent should be pretty good at choosing action given state, keep epsilon above 0 so that trader is not deterministic
-        agent.model.load_weights(f'{model_folder}/policy.h5')
+        agent.model.load_weights(f'{model_folder}/policyep995gam95.h5')
         print('Model Load Complete')
     elif args.mode == 'train_cont':
         with open(f'{model_folder}/standard.pkl', 'rb') as file: #using with statement and formatted literal strings to open weight file
@@ -344,7 +344,7 @@ if __name__ == '__main__':
     
     #if mode is train, need to save resulting weights and enviroment created from playing all episodes
     if (args.mode == 'train') or (args.mode == 'train_cont'):
-        agent.model.save_weights(f'{model_folder}/policy4stocks.h5')
+        agent.model.save_weights(f'{model_folder}/policy.h5')
         with open(f'{model_folder}/standard.pkl', 'wb') as f: #must specify write and binary to avoid errors in loading
             pickle.dump(standard, f)
  

@@ -33,8 +33,8 @@ for n in range(num_stocks):
     train_data[n, :, :] = input_data[n, :num_train, :]
     test_data[n, :, :] = input_data[n, num_train:, :]
 
-print(train_data[0,0,:])
-print(train_data[0,-1,:])
+print(test_data[0,0,:])
+print(test_data[0,-1,:])
 
-print(train_data[1,0,:])
-print(train_data[1,-1,:])
+print(test_data[1,0,:])
+print(test_data[1,-1,:])
