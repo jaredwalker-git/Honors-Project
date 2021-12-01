@@ -13,8 +13,28 @@ for i in range(len(raw_data)):
         input_data[j, :, :] = raw_data[i][:, 1:6]
         j = j + 1
 
-print(input_data[0,0,:])
-print(input_data[0,-1,:])
+num_stocks = input_data.shape[0]
+num_timesteps = input_data.shape[1]
+num_features = input_data.shape[2]
+       
+#split to test vs train data
+'''
+t = 10 #number of time stamps for each sequence                         <THIS MAY BE NECESSARY
+n = len(data) - t #length of usable timesteps for series creation
+'''
 
-print(input_data[1,0,:])
-print(input_data[1,-1,:])
+#choosing amount of data for training
+num_train = num_timesteps // 2
+#Initialize Time Series inputs
+train_data = np.zeros(shape = (num_stocks, num_train, num_features))
+test_data = np.zeros(shape = (num_stocks, num_train + 1, num_features))
+
+for n in range(num_stocks):
+    train_data[n, :, :] = input_data[n, :num_train, :]
+    test_data[n, :, :] = input_data[n, num_train:, :]
+
+print(train_data[0,0,:])
+print(train_data[0,-1,:])
+
+print(train_data[1,0,:])
+print(train_data[1,-1,:])

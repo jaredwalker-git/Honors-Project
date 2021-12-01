@@ -195,7 +195,7 @@ class Agent:
         self.state_shape = stateShape
         self.action_size = actionSize
         self.memory = Sample_Memory(stateShape, actionSize, 500)
-        self.gamma = 0.9 #gamma is scaling factor for future return in value function
+        self.gamma = 0.95 #gamma is scaling factor for future return in value function
         self.epsilon = 1.0 #starts at 1 which is completely random action
         self.epsilon_min = 0.01 #always have 1% chance of random action -> let agent explore
         self.epsilon_decay = 0.995 #as the agent learns, want to act less randomly and more on experience
@@ -237,7 +237,7 @@ class Agent:
         self.model.add(keras.layers.Dense(nodes, activation = 'relu')) 
         self.model.add(keras.layers.Dense(nodes, activation = 'relu')) 
         self.model.add(keras.layers.Dense(num_actions)) 
-        self.model.compile(loss = 'mse', optimizer = keras.optimizers.Adam(lr = 0.001))
+        self.model.compile(loss = 'mse', optimizer = keras.optimizers.Adam)
     
 def play_episode(agent, env, mode):
     #reset env and standardize state data
@@ -266,7 +266,7 @@ if __name__ == '__main__':
     #config for preset parameters
     reward_folder = 'rl_rewards'
     model_folder = 'rl_models'
-    num_episodes = 200
+    num_episodes = 100
     investment_val = 100000
     batchSize = 32
 

@@ -67,17 +67,28 @@ out = keras.layers.Dense(1, activation = 'sigmoid')(dense1) #will want to change
 model = keras.Model(inputs = inputLayer, outputs = out)
 model.compile(optimizer = 'adam', loss = 'binary_crossentropy',  metrics = 'accuracy')
 model.summary
-history = model.fit(x_train, y_train, epochs = 200, validation_data = (x_test, y_test))
+history = model.fit(x_train, y_train, epochs = 500, validation_data = (x_test, y_test))
 
 print(history.history.keys())
 
 plt.clf()
 plt.plot(history.history['accuracy'])
+plt.plot(history.history['val_accuracy'])
 plt.title('Model accuracy')
 plt.ylabel('Accuracy [%]')
 plt.xlabel('Numbers of Training Epochs')
 plt.legend(['Train', 'Test'], loc='upper left')
 plt.show()
+
+plt.clf()
+plt.plot(history.history['loss'])
+plt.plot(history.history['val_loss'])
+plt.title('Model Loss')
+plt.ylabel('Loss')
+plt.xlabel('Numbers of Training Epochs')
+plt.legend(['Train', 'Test'], loc='upper left')
+plt.show()
+
 
 
 
