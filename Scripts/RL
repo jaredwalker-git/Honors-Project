@@ -195,10 +195,10 @@ class Agent:
         self.state_shape = stateShape
         self.action_size = actionSize
         self.memory = Sample_Memory(stateShape, actionSize, 500)
-        self.gamma = 0.95 #gamma is scaling factor for future return in value function
-        self.epsilon = 1 #starts at 1 which is completely random action
+        self.gamma = 0.9 #gamma is scaling factor for future return in value function
+        self.epsilon = 1.0 #starts at 1 which is completely random action
         self.epsilon_min = 0.01 #always have 1% chance of random action -> let agent explore
-        self.epsilon_decay = 0.005 #as the agent learns, want to act less randomly and more on experience
+        self.epsilon_decay = 0.995 #as the agent learns, want to act less randomly and more on experience
         self.model = Sequential()
         self.make_model(stateShape, actionSize, 32)
     
@@ -206,11 +206,11 @@ class Agent:
         self.memory.store_data(state, state1, act, rew, done)
     #this is where policy improvement happens, a* = argmax(Q(s,a))
     def get_act(self, state):
-        #this is excersizing of a policy with exploration
-        if np.random.rand(1) < self.epsilon:
+        #this is excersizing of a policy with exploration -> Policy improvement 
+        if  np.random.rand() <= self.epsilon:
             return (np.random.choice(self.action_size))
-        act_val = self.model.predict(state)
-        return np.argmax(act_val)
+        act_val = self.model.predict(state) #action-value function given policy
+        return np.argmax(act_val[0]) #return optimal action
     
     def learn(self, batchsize):
         if batchsize > self.memory.curr_size:
@@ -218,28 +218,26 @@ class Agent:
         batch = self.memory.sample(batchsize)
         states = batch['states']
         states1 = batch['states1']
-        actions = batch['actions']
         rewards = batch['rewards']
-        done = batch['done']
         #target return estimated -> this is the prediction problem of reinforcement learning
+        #this is using value iteration to train the best policy -> deep Q-Learning
         targets = rewards + self.gamma * np.amax(self.model.predict(states1), axis = 1)
-
-        #train one episode
+        #train on batch -> this is the control problem of reinforcement learning -> finding an optimal policy based on the expected value of the future return
         self.model.train_on_batch(states, targets)
 
         #check epsilon and have it decay so that as the model learns here it relies less on exploration
         if self.epsilon > self.epsilon_min:
-            self.epsilon -= self.epsilon_decay
-
+            self.epsilon *= self.epsilon_decay
+            
     def make_model(self, input_shape, num_actions, nodes):
         # making model 
         self.model = keras.models.Sequential()
         self.model.add(keras.layers.Input(shape = (input_shape)))
-        self.model.add(keras.layers.Dense(nodes, activation = 'tanh')) 
-        self.model.add(keras.layers.Dense(nodes, activation = 'tanh')) 
-        self.model.add(keras.layers.Dense(nodes, activation = 'tanh')) 
+        self.model.add(keras.layers.Dense(nodes, activation = 'relu')) 
+        self.model.add(keras.layers.Dense(nodes, activation = 'relu')) 
+        self.model.add(keras.layers.Dense(nodes, activation = 'relu')) 
         self.model.add(keras.layers.Dense(num_actions)) 
-        self.model.compile(loss = 'mse', optimizer= 'adam')
+        self.model.compile(loss = 'mse', optimizer = keras.optimizers.Adam(lr = 0.001))
     
 def play_episode(agent, env, mode):
     #reset env and standardize state data
@@ -268,14 +266,14 @@ if __name__ == '__main__':
     #config for preset parameters
     reward_folder = 'rl_rewards'
     model_folder = 'rl_models'
-    num_episodes = 100
-    investment_val = 10000
-    batchSize = 64
+    num_episodes = 200
+    investment_val = 100000
+    batchSize = 32
 
 
     #set up parser for command line accessibility
     parser = argparse.ArgumentParser()
-    parser.add_argument('--mode', type = str, required = True, help = 'choose either "train", "train_cont" or "test"')
+    parser.add_argument('--mode', type = str, required = True, help = 'choose either "train", "train_cont", "list" or "test"')
     args = parser.parse_args()
     
     #make dir for folders
@@ -303,6 +301,17 @@ if __name__ == '__main__':
         train_data[n, :, :] = data[n, :num_train, :]
         test_data[n, :, :] = data[n, num_train:, :]
 
+    if args.mode == 'list':
+        raw_data = np.load('inputData.npy', allow_pickle = True)
+        print('Tickers')
+        for i in range(len(raw_data)):
+            print(raw_data[i][0, 6])
+        
+        exit()
+        
+        
+
+
     enviroment = StockEnv(train_data, investment_val)
     state_size = enviroment.state_size
     num_actions = len(enviroment.action_list)
@@ -328,7 +337,9 @@ if __name__ == '__main__':
     
     for episode in range(num_episodes):
         print(f'Episode {episode + 1} running...')
-        portfolio_value.append(play_episode(agent, enviroment, args.mode))
+        value = play_episode(agent, enviroment, args.mode)
+        portfolio_value.append(value)
+        print(f'Portfolio Value: {value} ')
         
     
     #if mode is train, need to save resulting weights and enviroment created from playing all episodes
