@@ -1,0 +1,4 @@
+-Single stock forcasting
+-stock identification
+-flow info algorithm
+-update bot with trading on daily timeframe

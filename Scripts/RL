@@ -204,7 +204,7 @@ class Agent:
     
     def update_memory(self, state, state1, act, rew, done):
         self.memory.store_data(state, state1, act, rew, done)
-    #this is where policy improvement happens, a* = argmax(Q(s,a))
+    #optimal policy exercised, a* = argmax(Q(s,a))
     def get_act(self, state):
         #this is excersizing of a policy with exploration -> Policy improvement 
         if  np.random.rand() <= self.epsilon:
@@ -273,7 +273,7 @@ if __name__ == '__main__':
 
     #set up parser for command line accessibility
     parser = argparse.ArgumentParser()
-    parser.add_argument('--mode', type = str, required = True, help = 'choose either "train", "train_cont", "list" or "test"')
+    parser.add_argument('--mode', type = str, required = True, help = 'choose either "train", "train_cont", "list" or "test" // WARNING: train will overwrite existing model')
     args = parser.parse_args()
     
     #make dir for folders
